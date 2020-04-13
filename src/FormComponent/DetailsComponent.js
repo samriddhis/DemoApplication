@@ -7,7 +7,10 @@ import {
   TouchableHighlight,
   TouchableOpacity,
   Dimensions,
-  Image
+  Image,
+  Alert,
+  ActivityIndicator,
+  Modal
 } from "react-native";
 const { height, width } = Dimensions.get("window");
 import { connect } from "react-redux";
@@ -33,14 +36,11 @@ class DetailsComponent extends React.Component {
       childCount: "",
       mobileNumber: "",
       address: "",
-      city:"",
+      city: "",
+      showLoadMask: false,
       imageUrl: "http://getdrawings.com/free-icon/blank-avatar-icon-75.png"
     };
   }
-
-  onSubmitListener = () => {
-    console.log("success");
-  };
 
   async _pressPictureUpload() {
     await ImagePicker.showImagePicker(options, response => {
@@ -59,10 +59,102 @@ class DetailsComponent extends React.Component {
     });
   }
 
+  apiCall() {
+    return new Promise(function(resolve, reject) {
+      try {
+        fetch(
+          "https://f4f0561d-3b8a-4321-a34e-799bd11b90a6.mock.pstmn.io/saveUser",
+          {
+            method: "GET"
+          }
+        )
+          .then(response => {
+            resolve(true);
+          })
+          .catch(error => {
+            console.log(error);
+            reject(error);
+          });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  _clearValue() {
+    this.setState({
+      spouseName: "",
+      childCount: "",
+      mobileNumber: "",
+      address: "",
+      city: ""
+    });
+  }
+  _fieldValidation() {
+    if (this.state.marriedStatus) {
+      if (
+        this.state.spouseName == "" ||
+        this.state.childCount == "" ||
+        this.state.mobileNumber == "" ||
+        (this.state.address == "") | (this.state.city == "")
+      ) {
+        return false;
+      }
+    } else {
+      if (
+        this.state.mobileNumber == "" ||
+        (this.state.address == "") | (this.state.city == "")
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+  async onSubmitListener() {
+    if (this._fieldValidation()) {
+      this.setState({ showLoadMask: true });
+      try {
+        let resp = await this.apiCall();
+        if (resp) {
+          alert("User has been saved successfully.");
+          this.setState({ showLoadMask: false });
+          this._clearValue();
+        } else {
+          this.setState({ showLoadMask: false });
+          alert("Oops,something went wrong!");
+        }
+      } catch (error) {
+        this.setState({ showLoadMask: false });
+        alert("Oops,something went wrong!");
+      }
+    } else {
+      Alert.alert("Warning", "Please enter details....");
+    }
+  }
+
   render() {
     return (
       <View style={styles.OuterContainer}>
         <HeaderComponent />
+        {this.state.showLoadMask ? (
+          <Modal
+            transparent={true}
+            animationType={"none"}
+            visible={this.state.showLoadMask}
+          >
+            <View style={styles.modalBackground}>
+              <View style={styles.activityIndicatorWrapper}>
+                <Text style={styles.loadingTxtStyle}>Loading.....</Text>
+                <ActivityIndicator
+                  animating={this.state.showLoadMask}
+                  color="#00b5ec"
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <View />
+        )}
         <View style={styles.container}>
           <View style={styles.UpperViewContainer}>
             <View style={styles.IconRoundStyle}>
@@ -98,11 +190,11 @@ class DetailsComponent extends React.Component {
                   size={16}
                 />
                 <TextInput
-                  value={this.state.firstName}
+                  value={this.state.spouseName}
                   style={styles.inputs}
                   placeholder="Spouse name"
                   underlineColorAndroid="transparent"
-                  onChangeText={text => this.setState({ firstName: text })}
+                  onChangeText={text => this.setState({ spouseName: text })}
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -115,8 +207,9 @@ class DetailsComponent extends React.Component {
                   size={16}
                 />
                 <TextInput
-                  value={this.state.firstName}
+                  value={this.state.childCount}
                   style={styles.inputs}
+                  keyboardType="numeric"
                   placeholder="Children Count"
                   underlineColorAndroid="transparent"
                   onChangeText={text => this.setState({ childCount: text })}
@@ -125,7 +218,7 @@ class DetailsComponent extends React.Component {
             </View>
           ) : null}
           <View style={styles.inputContainer}>
-          <Icon
+            <Icon
               reverse
               name="mobile-phone"
               type="font-awesome"
@@ -134,11 +227,18 @@ class DetailsComponent extends React.Component {
               size={16}
             />
             <TextInput
-              value={this.state.firstName}
+              value={this.state.mobileNumber}
               style={styles.inputs}
               placeholder="Mobile Number"
+              keyboardType="numeric"
               underlineColorAndroid="transparent"
-              onChangeText={text => this.setState({ mobileNumber: text })}
+              onChangeText={text => {
+                if (text.length > 12) {
+                  this.setState({ mobileNumber: "" });
+                } else {
+                  this.setState({ mobileNumber: text });
+                }
+              }}
             />
           </View>
 
@@ -152,7 +252,7 @@ class DetailsComponent extends React.Component {
               size={16}
             />
             <TextInput
-              value={this.state.lastName}
+              value={this.state.address}
               style={styles.inputs}
               placeholder="Address"
               underlineColorAndroid="transparent"
@@ -170,7 +270,7 @@ class DetailsComponent extends React.Component {
               color="#517fa4"
             />
             <TextInput
-              value={this.state.email}
+              value={this.state.city}
               style={styles.inputs}
               placeholder="City"
               underlineColorAndroid="transparent"
@@ -265,6 +365,25 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     color: "white"
+  },
+  modalBackground: {
+    flex: 1,
+    alignItems: "center",
+    flexDirection: "column",
+    justifyContent: "space-around",
+    backgroundColor: "#00000040"
+  },
+  activityIndicatorWrapper: {
+    backgroundColor: "#FFFFFF",
+    height: 100,
+    width: 100,
+    borderRadius: 10,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-around"
+  },
+  loadingTxtStyle: {
+    color: "gray"
   }
 });
 
